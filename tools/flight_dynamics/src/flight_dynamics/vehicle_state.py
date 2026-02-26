@@ -30,3 +30,30 @@ class PointMassState:
             position_ned=state_array[0:3],
             velocity_ned=state_array[3:6],
         )
+
+
+@dataclass
+class Basic6DOFState:
+    translational_position: Array1D  # (3,)
+    translational_velocity: Array1D  # (3,)
+    orientation_quaternion: Array1D  # (4,)
+    rotational_velocity: Array1D  # (3,)
+
+    def pack(self) -> Array1D:  # (6,)
+        return np.concatenate(
+            [
+                self.translational_position,
+                self.translational_velocity,
+                self.orientation_quaternion,
+                self.rotational_velocity,
+            ]
+        )
+
+    @classmethod
+    def unpack(cls, state_array: Array1D) -> "Basic6DOFState":
+        return cls(
+            translational_position=state_array[0:3],
+            translational_velocity=state_array[3:6],
+            orientation_quaternion=state_array[6:10],
+            rotational_velocity=state_array[10:13],
+        )
