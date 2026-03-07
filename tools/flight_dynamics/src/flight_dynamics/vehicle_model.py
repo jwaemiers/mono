@@ -52,13 +52,13 @@ class VehicleModel:
         thrust = self.max_thrust * control.throttle_percent * np.array([1, 0, 0])
 
         dynamic_pressure = 0.5 * air_density * np.linalg.norm(relative_wind_body) ** 2
-        drag = (
-            -self.cd
-            * dynamic_pressure
-            * self.reference_area
-            * relative_wind_body
-            / np.linalg.norm(relative_wind_body)
-        )
+
+        if np.linalg.norm(relative_wind_body) == 0:
+            drag_dir = np.zeros(3)
+        else:
+            drag_dir = relative_wind_body / np.linalg.norm(relative_wind_body)
+
+        drag = -self.cd * dynamic_pressure * self.reference_area * drag_dir
         lift = self.cl * dynamic_pressure * self.reference_area * np.array([0, 0, 1])
         force = thrust + drag + lift
 

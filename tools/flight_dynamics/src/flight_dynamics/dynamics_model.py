@@ -6,7 +6,7 @@ from environment_model import EnvironmentModel
 
 from reference_frame_model import FrameModel
 from vehicle_model import VehicleModel
-from vehicle_state import VehicleState, PointMassState, Basic6DOFState
+from vehicle_state import PointMassState, Basic6DOFState
 from flight_sim_typing import Array1D
 
 
@@ -111,10 +111,12 @@ class DynamicsModel6DOF(DynamicsModel):
         gravity_magnitude = self.environment.gravity(translational_position)
 
         # --- Relative Wind --- #
-        relative_wind_frame = self.frame.relative_wind(
+        relative_wind = self.frame.relative_wind(
             translational_position, translational_velocity, wind_velocity
         )
-        relative_wind_body = frame_to_body_quaternion @ relative_wind_frame
+        relative_wind_body = rotate_by_quaternion(
+            relative_wind, frame_to_body_quaternion
+        )
 
         # --- Vehicle Interface --- #
         mass_inertia_matrix = self.vehicle.mass_inertia_matrix(vehicle_state)
@@ -126,7 +128,7 @@ class DynamicsModel6DOF(DynamicsModel):
         )
 
         # --- Translational Dynamics --- #
-        frame_forces = body_to_frame_quaternion @ body_forces
+        frame_forces = rotate_by_quaternion(body_forces, body_to_frame_quaternion)
         gravity = gravity_direction * gravity_magnitude
         translational_acceleration = (
             frame_forces / mass + gravity + non_inertial_acceleration
@@ -156,10 +158,11 @@ class DynamicsModel6DOF(DynamicsModel):
 
 
 def quaternion_derivative(q: Array1D, omega: Array1D, reference_frame: str) -> Array1D:
+    w = np.array([0, *omega])
     if reference_frame == "fixed":
-        return 0.5 * quaternion_product(omega, q)
+        return 0.5 * quaternion_product(w, q)
     elif reference_frame == "body":
-        return 0.5 * quaternion_product(q, omega)
+        return 0.5 * quaternion_product(q, w)
     raise ValueError
 
 
@@ -168,11 +171,14 @@ def quaternion_product(a: Array1D, b: Array1D) -> Array1D:
     b_s, b_v = b[0], b[1:]
 
     c_s = a_s * b_s - np.dot(a_v, b_v)
-    c_v = a_s * b_v + a_v + b_s + np.cross(a_v, b_v)
+    c_v = a_s * b_v + a_v * b_s + np.cross(a_v, b_v)
 
     c = np.zeros(4)
     c[0] = c_s
     c[1:] = c_v
+
+    if np.linalg.norm(c) == 0:
+        return c
 
     return c / np.linalg.norm(c)
 
@@ -186,6 +192,8 @@ def quaternion_conjugate(q: Array1D) -> Array1D:
 
 
 def rotate_by_quaternion(v: Array1D, q: Array1D) -> Array1D:
+    if np.all(v == 0):
+        return v
     v_q = np.zeros(4)
     v_q[1:] = v
 
