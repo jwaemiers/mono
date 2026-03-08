@@ -1,3 +1,8 @@
+# Folders #
+###########
+.venv/
+.vscode/
+
 # Compiled source #
 ###################
 *.com
